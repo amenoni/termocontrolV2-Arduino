@@ -1,67 +1,19 @@
-#include <RTClib.h>
+#include <Mailbox.h>
 #include <Process.h>
 #include "config.h"
+#include "ledMgr.h"
 
 //Global Variables
 
 int MAXTEMP;
 //Current Mode of operation 0=NORMAL, 1=REPOSE 2=SETTINGS
 int MODE;
-
+int HEATER_ON = 0; //0 = off 1 = on
 //-----------------------------
 
-
-DateTime updateCurrentTime(){
-
-
-//Busca la forma de actualizar la hora como esta en el tutorial cosa que despues puedas hacer RTC.now o algo asi
-//La otra es usar time que se setea con  setTime(t);  y luego se llama con hour, day, etc
-
   
-Process process;
-DateTime datetime;
-String timeString;
-if (!process.running())  {
-    process.begin("date");
-    process.addParameter("+%s%z");
-    process.run();
-  }
-while (process.available()>0){
-  timeString = process.readString();
-  
-  String hemisfere = timeString.substring(10,11);
-  int timezone = timeString.substring(11,13).toInt();
-  long timestamp = 0;
-  if(hemisfere == "-"){
-    //TODO: ARMAR UN FUCKING SCRIPT QUE HAGA EN ESTO EN PYHTON Y TA!
-    timestamp = timeString.substring(0,10) - (timezone * 60);
-  }else{
-    timestamp = timeString.substring(0,10) + (timezone * 60);
-  }
-  datetime = DateTime(timestamp);
-  #if DEBUG_MODE
-    Serial.println("Current timestamp= " + timeString);
-    Serial.println("Current timestamp= " + String(timestamp));
-    Serial.println(hemisfere);
-    Serial.println(String(timezone));
-    
-    Serial.print("Current date= ");
-    Serial.println(String(datetime.day())+"/"+datetime.month()+"/"+datetime.year()+" "+datetime.hour()+":"+datetime.minute());
-  #endif //end debug_mode
-}
- 
-  return datetime;
-}
-  
-//last time the temperature was checked
-DateTime tempCheckedTime;
-
+//Temperature sensor ---------------------- 
 double getTemp(){
-  DateTime t = updateCurrentTime();
-  delay(200);
- //if the temperature is no longer valid
- if ( t.unixtime() >= tempCheckedTime.unixtime() + tempValidTimeSec ){
-
   long Resistance;  
   int RawADC = analogRead(ThermistorPIN);
   Resistance=pad*((1024.0 / RawADC) - 1); 
@@ -69,52 +21,132 @@ double getTemp(){
   TEMP = 1 / (0.001129148 + (0.000234125 * TEMP) + (0.0000000876741 * TEMP * TEMP * TEMP));
   TEMP = TEMP - 273.15;  // Convert Kelvin to Celsius                      
 
-  // BEGIN- Remove these lines for the function not to display anything
-  Serial.print("ADC: "); 
-  Serial.print(RawADC); 
-  Serial.print("/1024");                           // Print out RAW ADC Number
-  Serial.print(", vcc: ");
-  Serial.print(vcc,2);
-  Serial.print(", pad: ");
-  Serial.print(pad/1000,3);
-  Serial.print(" Kohms, Volts: "); 
-  Serial.print(((RawADC*vcc)/1024.0),3);   
-  Serial.print(", Resistance: "); 
-  Serial.print(Resistance);
-  Serial.print(" ohms, ");
-  // END- Remove these lines for the function not to display anything
-   
-   tempCheckedTime = t;
    #if DEBUG_MODE
-     Serial.print("Temperature= ");
-     Serial.println(TEMP);
+     
+    // BEGIN- Remove these lines for the function not to display anything
+    Serial.print("ADC: "); 
+    Serial.print(RawADC); 
+    Serial.print("/1024");                           // Print out RAW ADC Number
+    Serial.print(", vcc: ");
+    Serial.print(vcc,2);
+    Serial.print(", pad: ");
+    Serial.print(pad/1000,3);
+    Serial.print(" Kohms, Volts: "); 
+    Serial.print(((RawADC*vcc)/1024.0),3);   
+    Serial.print(", Resistance: "); 
+    Serial.print(Resistance);
+    Serial.print(" ohms, ");
+    // END- Remove these lines for the function not to display anything
+    Serial.print("Temperature= ");
+    Serial.println(TEMP);
    #endif //end debug mode
    
    //Update MAXTEMP Value
    if (TEMP > MAXTEMP){
      MAXTEMP = TEMP;
-     //TODO
-     //saveConfigFile();
-   }
-   
-   
+   } 
    return TEMP;  
- }else{
-  return TEMP; 
- }
 }
+
+//-----------------------
+//Heater switch control --------------
+void HeaterSwitch (boolean isOn){
+  if(isOn == true){
+    digitalWrite(heaterRelay,1);
+    HEATER_ON = 1;
+    #if ECHO_TO_SERIAL
+    Serial.println("Heater ON"); 
+    #endif //ECHO_TO_SERIA
+  }else{
+    digitalWrite(heaterRelay,0);
+    HEATER_ON = 0;
+    #if ECHO_TO_SERIAL
+    Serial.println("Heater OFF"); 
+    #endif //ECHO_TO_SERIA
+  
+  }
+}
+
+//-----------------------
+
+
 
 void setup() {
   Bridge.begin();
   Serial.begin(9600);     
+  
+  //pin config
+  pinMode(heaterRelay, OUTPUT);
+  digitalWrite(heaterRelay,LOW);
+  pinMode(RedLed, OUTPUT);
+  pinMode(BlueLed, OUTPUT);
+  pinMode(GreenLed, OUTPUT);
+  
   #if DEBUG_MODE
-  while(!Serial);      
-  Serial.println("Time Check");
+    while(!Serial){      
+      if(digitalRead(RedLed)==HIGH){
+        SetLed(NIL);
+      }else{
+        SetLed(RED);
+      }
+      delay(500);
+  }
+  SetLed(NIL);
+  Serial.println("Debug Mode on");
   #endif //end Debug mode
+
+
+  
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  getTemp();
-  delay(10000);
+String message;
+// Mailbox control
+if (Mailbox.messageAvailable()){
+  // read all the messages present in the queue
+  while (Mailbox.messageAvailable()){
+    Mailbox.readMessage(message);
+    Serial.println(message);
+  }
+  String action = message.substring(0,message.indexOf(" "));
+  Serial.println("Action: " +  action);  
+  String command;
+  if(action == "updateTemp"){
+    Process p;
+    p.begin("/mnt/sda1/arduino/updateTemp.py");
+    p.addParameter(String(getTemp()));
+    p.run();
+    Serial.println("New temperature seted");
+  }else if(action == "heater"){
+    command = message.substring(message.indexOf(" ")+1, message.length());
+    Serial.println("Command: " + command);
+    if(command == "on"){
+      HeaterSwitch(true);
+    }else{
+      HeaterSwitch(false);
+    }
+  }else if(action == "mode"){
+    //changes between modes
+  }
+  Serial.println("Waiting for new message");
+}
+//-------END Mailbox Control -------------------
+
+//-----Modes control-----------
+
+
+
+//---UI controll ---------
+  if(HEATER_ON == 0){
+    SetLed(BLUE);
+  }else{
+    SetLed(RED);
+  }//TODO: Set the led green when the usage is ready
+
+//-------------------------
+  
+  delay(1000);
+  
+
+ 
 }

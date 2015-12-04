@@ -1,5 +1,5 @@
 //---------------Heater Relay config
-#define heaterRelay 53 //pin to control de heater relay
+#define heaterRelay 13 //pin to control de heater relay
 int heaterOn = 1; //0 = off 1 = on
 //--------------------------------------
 
