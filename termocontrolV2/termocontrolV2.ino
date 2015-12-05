@@ -6,10 +6,23 @@
 //Global Variables
 
 int MAXTEMP;
-//Current Mode of operation 0=NORMAL, 1=REPOSE 2=SETTINGS
-int MODE;
+
+int MODE = -1;
+//operation modes REPOSE MODE = 0, WAITING = 1, PREPARE USAGE = 2
+
 int HEATER_ON = 0; //0 = off 1 = on
+
+int TARGET_TEMP;
+float PERCENTAGE_TEMP_FOR_READY = 0.9; //when this temperature is reached we turn the heater off
+
+boolean USAGE_READY = false;
 //-----------------------------
+
+void resetVariables(){
+  USAGE_READY = false;
+ 
+}
+
 
   
 //Temperature sensor ---------------------- 
@@ -106,11 +119,12 @@ if (Mailbox.messageAvailable()){
   // read all the messages present in the queue
   while (Mailbox.messageAvailable()){
     Mailbox.readMessage(message);
-    Serial.println(message);
+    Serial.println("Message = " +message);
   }
   String action = message.substring(0,message.indexOf(" "));
   Serial.println("Action: " +  action);  
   String command;
+  String command_parameters;
   if(action == "updateTemp"){
     Process p;
     p.begin("/mnt/sda1/arduino/updateTemp.py");
@@ -126,22 +140,95 @@ if (Mailbox.messageAvailable()){
       HeaterSwitch(false);
     }
   }else if(action == "mode"){
-    //changes between modes
+      message = message.substring(message.indexOf(" ")+1, message.length());
+      int first_command_parameter = message.indexOf(" ");
+      command = message.substring(0,first_command_parameter);
+      #if DEBUG_MODE
+        Serial.println("command=" + command);
+      #endif
+      if(command == "repose"){
+        resetVariables();
+        MODE = 0;
+      }else if(command == "waiting_temp"){
+         resetVariables();
+         MODE = 1;
+         command_parameters = message.substring(first_command_parameter + 1, message.length());
+         TARGET_TEMP = command_parameters.toInt();
+         #if DEBUG_MODE
+         Serial.println("TARGET_TEMP= " + String(TARGET_TEMP));
+         #endif
+      }else if(command == "prepare_usage"){
+         resetVariables();
+         MODE = 2;
+         command_parameters = message.substring(first_command_parameter + 1, message.length());
+         TARGET_TEMP = command_parameters.toInt();
+         #if DEBUG_MODE
+         Serial.println("Pepare usage TARGET_TEMP= " + String(TARGET_TEMP));
+         #endif
+        
+      }
   }
   Serial.println("Waiting for new message");
 }
 //-------END Mailbox Control -------------------
 
-//-----Modes control-----------
+//-----Mode control-----------
+switch(MODE){
+  case -1:
+    if(HEATER_ON == 0){
+      HeaterSwitch(true);
+      #if DEBUG_MODE
+        Serial.println("Mode -1 heater on");
+      #endif 
+    }
+    break;
+  case 0: //REPOSE MODE
+    if(HEATER_ON == 1){
+      HeaterSwitch(false);
+      #if DEBUG_MODE
+        Serial.println("Mode REPOSE heater OFF");
+      #endif 
+    }
+    break;
+  case 1: //Waiting temp mode
+    if(getTemp() < TARGET_TEMP * PERCENTAGE_TEMP_FOR_READY){
+      HeaterSwitch(true);
+      #if DEBUG_MODE
+        Serial.println("Mode WAITING TEMP Heater On Current temp: " + String(getTemp()) );
+      #endif 
+    }else{
+      HeaterSwitch(false);
+      Serial.println("Mode WAITING TEMP Heater off Current temp: " + String(getTemp()) );
+    }
+    break;
+  case 2: //Prepare usage mode
+    if(getTemp() < TARGET_TEMP * PERCENTAGE_TEMP_FOR_READY){
+      HeaterSwitch(true);
+      USAGE_READY = false;
+      #if DEBUG_MODE
+        Serial.println("Mode PREPARE USAGE Heater On Current temp: " + String(getTemp()) );
+      #endif 
+    }else{
+      USAGE_READY = true;
+      HeaterSwitch(false);
+      Serial.println("Mode PREPARE USAGE Heater off Current temp: " + String(getTemp()) );
+    }
+    break;
+  
+}
 
-
-
+//----------------------------
 //---UI controll ---------
   if(HEATER_ON == 0){
-    SetLed(BLUE);
+    if(USAGE_READY == true){
+      SetLed(GREEN);  
+    }else{
+      SetLed(BLUE);  
+    }
+    
   }else{
-    SetLed(RED);
-  }//TODO: Set the led green when the usage is ready
+    SetLed(RED);   
+  }
 
 //-------------------------
   
