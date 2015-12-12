@@ -20,8 +20,4 @@ float pad = 9740;                       // balance/pad resistor value, set this 
                                         // the measured resistance of your pad resistor
 float thermr = 10000;                   // thermistor nominal resistance
 
-//Global Variable to store the temperature value to avoid delays
-double TEMP = 0;
-//temperature last reading maxmiun valid time in seconds
-int tempValidTimeSec = 30;
 //----------------------------------
