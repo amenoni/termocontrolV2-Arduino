@@ -229,11 +229,9 @@ void loop() {
 String message;
 // Mailbox control
 if (Mailbox.messageAvailable()){
-  // read all the messages present in the queue
-  while (Mailbox.messageAvailable()){
-    Mailbox.readMessage(message);
-    Serial.println("Message = " +message);
-  }
+  Mailbox.readMessage(message);
+  Serial.println("Message = " +message);
+  
   String action = message.substring(0,message.indexOf(" "));
   Serial.println("Action: " +  action);  
   String command;
@@ -241,7 +239,7 @@ if (Mailbox.messageAvailable()){
   if(action == "updateTemp"){
     Process p;
     p.begin("/mnt/sda1/arduino/updateTemp.py");
-    p.addParameter(String(getTemp()));
+    p.addParameter(String(TEMP));
     p.run();
     Serial.println("New temperature seted");
   }else if(action == "heater"){

@@ -7,7 +7,7 @@ int heaterOn = 1; //0 = off 1 = on
 #define btnOk 49
 #define btnNext 51
 #define btnBack 47
-#define DEBUG_MODE 1  //echo data to serial port 1= true 0 = false 
+#define DEBUG_MODE 0  //echo data to serial port 1= true 0 = false 
 //------------------------------
 
 //-----------Temperature sensor config
