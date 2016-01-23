@@ -61,21 +61,21 @@ double getTemp(){
    #if DEBUG_MODE
      
     // BEGIN- Remove these lines for the function not to display anything
-    Serial.print("ADC: "); 
-    Serial.print(RawADC); 
-    Serial.print("/1024");                           // Print out RAW ADC Number
-    Serial.print(", vcc: ");
-    Serial.print(vcc,2);
-    Serial.print(", pad: ");
-    Serial.print(pad/1000,3);
-    Serial.print(" Kohms, Volts: "); 
-    Serial.print(((RawADC*vcc)/1024.0),3);   
-    Serial.print(", Resistance: "); 
-    Serial.print(Resistance);
-    Serial.print(" ohms, ");
+    Console.print("ADC: "); 
+    Console.print(RawADC); 
+    Console.print("/1024");                           // Print out RAW ADC Number
+    Console.print(", vcc: ");
+    Console.print(vcc,2);
+    Console.print(", pad: ");
+    Console.print(pad/1000,3);
+    Console.print(" Kohms, Volts: "); 
+    Console.print(((RawADC*vcc)/1024.0),3);   
+    Console.print(", Resistance: "); 
+    Console.print(Resistance);
+    Console.print(" ohms, ");
     // END- Remove these lines for the function not to display anything
-    Serial.print("Temperature= ");
-    Serial.println(TEMP);
+    Console.print("Temperature= ");
+    Console.println(TEMP);
    #endif //end debug mode
    
    //Update MAXTEMP Value
@@ -91,14 +91,14 @@ void HeaterSwitch (boolean isOn){
   if(isOn == true){
     digitalWrite(heaterRelay,1);
     HEATER_ON = 1;
-    #if ECHO_TO_SERIAL
-    Serial.println("Heater ON"); 
+    #if DEBUG_MODE
+    Console.println("Heater ON"); 
     #endif //ECHO_TO_SERIA
   }else{
     digitalWrite(heaterRelay,0);
     HEATER_ON = 0;
-    #if ECHO_TO_SERIAL
-    Serial.println("Heater OFF"); 
+    #if DEBUG_MODE
+    Console.println("Heater OFF"); 
     #endif //ECHO_TO_SERIA
   
   }
@@ -120,7 +120,7 @@ int UseStatus(){
  //clean all the variables if the data is old
  if(getTimeDifInSecs(lastCheckedTimeUsageTemp) >= (InUseSensingTempTimeSec)* 3){
     #if DEBUG_MODE
-    Serial.println("Cleaning in use method variables");
+    Console.println("Cleaning in use method variables");
     #endif //ECHO_TO_SERIA
     CurrentUseStatus = USENOTSTARTED;
     deltat = 0;
@@ -131,7 +131,7 @@ int UseStatus(){
 
  //if the temperature is no longer valid
  if (getTimeDifInSecs(lastCheckedTimeUsageTemp) >=  InUseSensingTempTimeSec ){
-     Serial.println("Checking In use temp");
+     Console.println("Checking In use temp");
      
    if(lastInUseCheckedTemp == 0){
      lastInUseCheckedTemp = getTemp();
@@ -143,12 +143,12 @@ int UseStatus(){
     lastCheckedTimeUsageTemp = t;
 
      #if DEBUG_MODE
-    Serial.println("Delta T = " + String(deltat));
+    Console.println("Delta T = " + String(deltat));
     #endif //ECHO_TO_SERIA
     if(CurrentUseStatus == USENOTSTARTED ){
       if(deltat <= MaxTempDropForUseDetectedPercent){
              #if DEBUG_MODE
-                Serial.println("Use start detected");
+                Console.println("Use start detected");
              #endif //ECHO_TO_SERIA
         CurrentUseStatus = INUSE;
         if (ussageloged == false){
@@ -161,7 +161,7 @@ int UseStatus(){
     }else if(CurrentUseStatus == INUSE){
       if(deltat >= MaxTempUpForDetectUseFinishedPercent){
              #if DEBUG_MODE
-                Serial.println("Use finished detected");
+                Console.println("Use finished detected");
              #endif //ECHO_TO_SERIA
         CurrentUseStatus = USEFINISHED;
         logUsageEvent();     
@@ -192,14 +192,14 @@ void logUsageEvent(){
     }
     p.run();
     #if DEBUG_MODE
-    Serial.println("Log usage event triggered ");
+    Console.println("Log usage event triggered ");
     #endif
 }
 
 
 void setup() {
   Bridge.begin();
-  Serial.begin(9600);     
+  Console.begin();     
   
   //pin config
   pinMode(heaterRelay, OUTPUT);
@@ -209,7 +209,7 @@ void setup() {
   pinMode(GreenLed, OUTPUT);
   
   #if DEBUG_MODE
-    while(!Serial){      
+    while(!Console){      
       if(digitalRead(RedLed)==HIGH){
         SetLed(NIL);
       }else{
@@ -218,7 +218,7 @@ void setup() {
       delay(500);
   }
   SetLed(NIL);
-  Serial.println("Debug Mode on");
+  Console.println("Debug Mode on");
   #endif //end Debug mode
 
 
@@ -230,10 +230,10 @@ String message;
 // Mailbox control
 if (Mailbox.messageAvailable()){
   Mailbox.readMessage(message);
-  Serial.println("Message = " +message);
+  Console.println("Message = " +message);
   
   String action = message.substring(0,message.indexOf(" "));
-  Serial.println("Action: " +  action);  
+  Console.println("Action: " +  action);  
   String command;
   String command_parameters;
   if(action == "updateTemp"){
@@ -241,10 +241,10 @@ if (Mailbox.messageAvailable()){
     p.begin("/mnt/sda1/arduino/updateTemp.py");
     p.addParameter(String(TEMP));
     p.run();
-    Serial.println("New temperature seted");
+    Console.println("New temperature seted");
   }else if(action == "heater"){
     command = message.substring(message.indexOf(" ")+1, message.length());
-    Serial.println("Command do: " + command);
+    Console.println("Command do: " + command);
     if(command == "on"){
       HeaterSwitch(true);
     }else{
@@ -255,7 +255,7 @@ if (Mailbox.messageAvailable()){
       int first_command_parameter = message.indexOf(" ");
       command = message.substring(0,first_command_parameter);
       #if DEBUG_MODE
-        Serial.println("command=" + command);
+        Console.println("command=" + command);
       #endif
       if(command == "repose"){
         resetVariables();
@@ -266,7 +266,7 @@ if (Mailbox.messageAvailable()){
          command_parameters = message.substring(first_command_parameter + 1, message.length());
          TARGET_TEMP = command_parameters.toInt();
          #if DEBUG_MODE
-         Serial.println("TARGET_TEMP= " + String(TARGET_TEMP));
+         Console.println("TARGET_TEMP= " + String(TARGET_TEMP));
          #endif
       }else if(command == "prepare_usage"){
          resetVariables();
@@ -274,12 +274,12 @@ if (Mailbox.messageAvailable()){
          command_parameters = message.substring(first_command_parameter + 1, message.length());
          TARGET_TEMP = command_parameters.toInt();
          #if DEBUG_MODE
-         Serial.println("Pepare usage TARGET_TEMP= " + String(TARGET_TEMP));
+         Console.println("Pepare usage TARGET_TEMP= " + String(TARGET_TEMP));
          #endif
         
       }
   }
-  Serial.println("Waiting for new message");
+  Console.println("Waiting for new message");
 }
 //-------END Mailbox Control -------------------
 
@@ -289,7 +289,7 @@ switch(MODE){
     if(HEATER_ON == 0){
       HeaterSwitch(true);
       #if DEBUG_MODE
-        Serial.println("Mode -1 heater on");
+        Console.println("Mode -1 heater on");
       #endif 
     }
     break;
@@ -297,7 +297,7 @@ switch(MODE){
     if(HEATER_ON == 1){
       HeaterSwitch(false);
       #if DEBUG_MODE
-        Serial.println("Mode REPOSE heater OFF");
+        Console.println("Mode REPOSE heater OFF");
       #endif 
     }
     break;
@@ -305,11 +305,11 @@ switch(MODE){
     if(getTemp() < TARGET_TEMP * PERCENTAGE_TEMP_FOR_READY){
       HeaterSwitch(true);
       #if DEBUG_MODE
-        Serial.println("Mode WAITING TEMP Heater On Current temp: " + String(getTemp()) );
+        Console.println("Mode WAITING TEMP Heater On Current temp: " + String(getTemp()) );
       #endif 
     }else{
       HeaterSwitch(false);
-      Serial.println("Mode WAITING TEMP Heater off Current temp: " + String(getTemp()) );
+      Console.println("Mode WAITING TEMP Heater off Current temp: " + String(getTemp()) );
     }
     break;
   case 2: //Prepare usage mode
@@ -317,12 +317,12 @@ switch(MODE){
       HeaterSwitch(true);
       USAGE_READY = false;
       #if DEBUG_MODE
-        Serial.println("Mode PREPARE USAGE Heater On Current temp: " + String(getTemp()) );
+        Console.println("Mode PREPARE USAGE Heater On Current temp: " + String(getTemp()) );
       #endif 
     }else{
       USAGE_READY = true;
       HeaterSwitch(false);
-      Serial.println("Mode PREPARE USAGE Heater off Current temp: " + String(getTemp()) );
+      Console.println("Mode PREPARE USAGE Heater off Current temp: " + String(getTemp()) );
     }
     break;
   
