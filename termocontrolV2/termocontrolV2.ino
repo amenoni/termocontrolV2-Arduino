@@ -28,9 +28,9 @@ int tempValidTimeSec = 30;
 //to detect if a usage has been started or not we must check temperature changes, if it drops an usage has started if afeter the usage has been started the temperature rises again the usage has been finished
 int InUseSensingTempTimeSec = 60;
 //if the temperature droped in the last sensing interval is higer than this value we have been detected an usage. Value is % of the last sensed temperature
-int MaxTempDropForUseDetectedPercent = -2;
-//after we detect an usage we start looking and usage finished, to detect it we spect to temperature start rising again, if the temperature rises more than this percent from the last sensing we have detected an usage finish
-int MaxTempUpForDetectUseFinishedPercent = 2;
+int MaxTempDropForUseDetectedPercent = -5;
+//after we detect an usage we start looking a usage finished, to detect it we spect to temperature start rising again, if the temperature rises more than this percent from the last sensing we have detected an usage finish
+int MaxTempUpForDetectUseFinishedPercent = 5;
 //the amount of seconds for witch we maintain the heater in prepared state after the User trigger an usage 3600 = 1 hour
 
 //-----------------------------
