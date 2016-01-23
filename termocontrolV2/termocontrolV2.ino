@@ -11,7 +11,6 @@ int MODE = -1;
 //operation modes REPOSE MODE = 0, WAITING = 1, PREPARE USAGE = 2
 int HEATER_ON = 0; //0 = off 1 = on
 int TARGET_TEMP;
-float PERCENTAGE_TEMP_FOR_READY = 0.9; //when this temperature is reached we turn the heater off
 boolean USAGE_READY = false;
 const int USENOTSTARTED = 0;
 const int INUSE = 1;
@@ -23,6 +22,9 @@ const int USAGE_FINISHED = 1;
 
 //Global Variable to store the temperature value to avoid delays
 double TEMP = 0;
+
+//-- This global variables are re-writed in Linux setup scrips via MailBox
+float PERCENTAGE_TEMP_FOR_READY = 0.9; //when this temperature is reached we turn the heater off
 //temperature last reading maxmiun valid time in seconds
 int tempValidTimeSec = 30;
 //to detect if a usage has been started or not we must check temperature changes, if it drops an usage has started if afeter the usage has been started the temperature rises again the usage has been finished
@@ -31,6 +33,7 @@ int InUseSensingTempTimeSec = 60;
 int MaxTempDropForUseDetectedPercent = -5;
 //after we detect an usage we start looking a usage finished, to detect it we spect to temperature start rising again, if the temperature rises more than this percent from the last sensing we have detected an usage finish
 int MaxTempUpForDetectUseFinishedPercent = 5;
+//-- END //-- This global variables are re-writed in Linux setup scrips via MailBox
 
 
 //-----------------------------
