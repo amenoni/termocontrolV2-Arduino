@@ -31,7 +31,7 @@ int InUseSensingTempTimeSec = 60;
 int MaxTempDropForUseDetectedPercent = -5;
 //after we detect an usage we start looking a usage finished, to detect it we spect to temperature start rising again, if the temperature rises more than this percent from the last sensing we have detected an usage finish
 int MaxTempUpForDetectUseFinishedPercent = 5;
-//the amount of seconds for witch we maintain the heater in prepared state after the User trigger an usage 3600 = 1 hour
+
 
 //-----------------------------
 
@@ -278,7 +278,43 @@ if (Mailbox.messageAvailable()){
          #endif
         
       }
-  }
+  }else if(action == "config"){
+         message = message.substring(message.indexOf(" ")+1, message.length());
+         int first_command_parameter = message.indexOf(" ");
+         command = message.substring(0,first_command_parameter);
+         if (command == "PERCENTAGE_TEMP_FOR_READY"){
+            command_parameters = message.substring(first_command_parameter + 1, message.length());
+            PERCENTAGE_TEMP_FOR_READY = command_parameters.toFloat();
+            #if DEBUG_MODE
+              Console.println("Config setted PERCENTAGE_TEMP_FOR_READY= " + String(PERCENTAGE_TEMP_FOR_READY));
+            #endif
+         }else if (command == "tempValidTimeSec"){
+            command_parameters = message.substring(first_command_parameter + 1, message.length());
+            tempValidTimeSec = command_parameters.toInt();
+            #if DEBUG_MODE
+              Console.println("Config setted tempValidTimeSec= " + String(tempValidTimeSec));
+            #endif
+         }else if (command == "InUseSensingTempTimeSec"){
+            command_parameters = message.substring(first_command_parameter + 1, message.length());
+            InUseSensingTempTimeSec = command_parameters.toInt();
+            #if DEBUG_MODE
+              Console.println("Config setted InUseSensingTempTimeSec= " + String(InUseSensingTempTimeSec));
+            #endif
+         }else if (command == "MaxTempDropForUseDetectedPercent"){
+            command_parameters = message.substring(first_command_parameter + 1, message.length());
+            MaxTempDropForUseDetectedPercent = command_parameters.toInt();
+            #if DEBUG_MODE
+              Console.println("Config setted MaxTempDropForUseDetectedPercent= " + String(MaxTempDropForUseDetectedPercent));
+            #endif
+         }else if (command == "MaxTempUpForDetectUseFinishedPercent"){
+            command_parameters = message.substring(first_command_parameter + 1, message.length());
+            MaxTempUpForDetectUseFinishedPercent = command_parameters.toInt();
+            #if DEBUG_MODE
+              Console.println("Config setted MaxTempUpForDetectUseFinishedPercent= " + String(MaxTempUpForDetectUseFinishedPercent));
+            #endif
+         }
+         
+      }
   Console.println("Waiting for new message");
 }
 //-------END Mailbox Control -------------------
