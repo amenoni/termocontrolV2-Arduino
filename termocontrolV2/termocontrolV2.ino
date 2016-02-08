@@ -30,9 +30,9 @@ int tempValidTimeSec = 30;
 //to detect if a usage has been started or not we must check temperature changes, if it drops an usage has started if afeter the usage has been started the temperature rises again the usage has been finished
 int InUseSensingTempTimeSec = 60;
 //if the temperature droped in the last sensing interval is higer than this value we have been detected an usage. Value is % of the last sensed temperature
-int MaxTempDropForUseDetectedPercent = -5;
+int MaxTempDropForUseDetectedPercent = -2;
 //after we detect an usage we start looking a usage finished, to detect it we spect to temperature start rising again, if the temperature rises more than this percent from the last sensing we have detected an usage finish
-int MaxTempUpForDetectUseFinishedPercent = 5;
+int MaxTempUpForDetectUseFinishedPercent = 2;
 //-- END //-- This global variables are re-writed in Linux setup scrips via MailBox
 
 
@@ -62,21 +62,6 @@ double getTemp(){
   TEMP = TEMP - 273.15;  // Convert Kelvin to Celsius                      
 
    #if DEBUG_MODE
-     
-    // BEGIN- Remove these lines for the function not to display anything
-    Console.print("ADC: "); 
-    Console.print(RawADC); 
-    Console.print("/1024");                           // Print out RAW ADC Number
-    Console.print(", vcc: ");
-    Console.print(vcc,2);
-    Console.print(", pad: ");
-    Console.print(pad/1000,3);
-    Console.print(" Kohms, Volts: "); 
-    Console.print(((RawADC*vcc)/1024.0),3);   
-    Console.print(", Resistance: "); 
-    Console.print(Resistance);
-    Console.print(" ohms, ");
-    // END- Remove these lines for the function not to display anything
     Console.print("Temperature= ");
     Console.println(TEMP);
    #endif //end debug mode
@@ -109,13 +94,38 @@ void HeaterSwitch (boolean isOn){
 
 //-----------------------
 
+int CurrentUseStatus = USENOTSTARTED;
+
+void logUsageEvent(){
+    Process p;
+    p.begin("/mnt/sda1/arduino/registerUsageLog.py");
+    if(CurrentUseStatus == INUSE){
+      p.addParameter(String(USAGE_STARTED));  
+    }else if(CurrentUseStatus == USEFINISHED){
+      p.addParameter(String(USAGE_FINISHED));  
+    }
+    p.run();
+    #if DEBUG_MODE
+    Console.println("Log usage event triggered ");
+    #endif
+}
+
+
+
+
 
 double lastCheckedTimeUsageTemp;
-double lastInUseCheckedTemp;
 
-int CurrentUseStatus = USENOTSTARTED;
+
 double deltat = 0;
 boolean ussageloged = false;
+
+double deltaT1 = 0;
+double temp1 = 0;
+double deltaT2 = 0;
+double temp2 = 0;
+double deltaT3 = 0;
+double temp3 = 0;
 
 int UseStatus(){
  double t = millis();
@@ -127,7 +137,12 @@ int UseStatus(){
     #endif //ECHO_TO_SERIA
     CurrentUseStatus = USENOTSTARTED;
     deltat = 0;
-    lastInUseCheckedTemp = 0;
+    deltaT1 = 0;
+    temp1 = 0;
+    deltaT2 = 0;
+    temp2 = 0;
+    deltaT3 = 0;
+    temp3 = 0;
     ussageloged = false;
  }
 
@@ -136,17 +151,44 @@ int UseStatus(){
  if (getTimeDifInSecs(lastCheckedTimeUsageTemp) >=  InUseSensingTempTimeSec ){
      Console.println("Checking In use temp");
      
-   if(lastInUseCheckedTemp == 0){
-     lastInUseCheckedTemp = getTemp();
-     lastCheckedTimeUsageTemp = t;
-   }else{
-    deltat = ((getTemp() * 100) / lastInUseCheckedTemp) - 100;
-    //after we calculate the deltaT we set the historical temp for the next run
-    lastInUseCheckedTemp = getTemp();
-    lastCheckedTimeUsageTemp = t;
+     deltaT3 = deltaT2;
+     temp3 = temp2;
+     deltaT2 = deltaT1;
+     temp2 = temp1;
 
-     #if DEBUG_MODE
-    Console.println("Delta T = " + String(deltat));
+     temp1 = getTemp();
+     lastCheckedTimeUsageTemp = t;
+     deltaT1 = temp1 - temp2;
+
+     if(temp1 != 0 && temp2 != 0 && temp3 != 0){
+        double prom = deltaT1 + deltaT2 + deltaT3;
+        prom = prom / 3;
+
+        deltat = (prom * 100) / temp3;
+      
+        #if DEBUG_MODE
+         Console.println("----------DELTA Temp Values ----------");
+         Console.println("temp1= " + String(temp1));
+         Console.println("deltaT1= " + String(deltaT1));
+         Console.println("temp2= " + String(temp2));
+         Console.println("deltaT2= " + String(deltaT2));
+         Console.println("temp3= " + String(temp3));
+         Console.println("deltaT3= " + String(deltaT3));
+         Console.println("prom= " + String(prom));
+         Console.println("DELTA T= " + String(deltat));
+         
+       #endif //ECHO_TO_SERIA
+
+        
+        
+     }else{
+       #if DEBUG_MODE
+         Console.println("Not enough data to detect current status");
+       #endif //ECHO_TO_SERIA
+     }
+    
+    #if DEBUG_MODE
+    Console.println("% Delta T = " + String(deltat));
     #endif //ECHO_TO_SERIA
     if(CurrentUseStatus == USENOTSTARTED ){
       if(deltat <= MaxTempDropForUseDetectedPercent){
@@ -176,28 +218,8 @@ int UseStatus(){
     }
 
    }
-
-
- }else{
-   return CurrentUseStatus;
- }
-
-
 }
 
-void logUsageEvent(){
-    Process p;
-    p.begin("/mnt/sda1/arduino/registerUsageLog.py");
-    if(CurrentUseStatus == INUSE){
-      p.addParameter(String(USAGE_STARTED));  
-    }else if(CurrentUseStatus == USEFINISHED){
-      p.addParameter(String(USAGE_FINISHED));  
-    }
-    p.run();
-    #if DEBUG_MODE
-    Console.println("Log usage event triggered ");
-    #endif
-}
 
 
 void setup() {
@@ -347,8 +369,11 @@ switch(MODE){
         Console.println("Mode WAITING TEMP Heater On Current temp: " + String(getTemp()) );
       #endif 
     }else{
-      HeaterSwitch(false);
-      Console.println("Mode WAITING TEMP Heater off Current temp: " + String(getTemp()) );
+      //let the temperature rise over the target 
+      if(getTemp() > TARGET_TEMP + (TARGET_TEMP * 0.1)){
+        HeaterSwitch(false);
+        Console.println("Mode WAITING TEMP Heater off Current temp: " + String(getTemp()) );
+      }
     }
     break;
   case 2: //Prepare usage mode
@@ -360,8 +385,11 @@ switch(MODE){
       #endif 
     }else{
       USAGE_READY = true;
-      HeaterSwitch(false);
-      Console.println("Mode PREPARE USAGE Heater off Current temp: " + String(getTemp()) );
+      //let the temperature rise over the target 
+      if(getTemp() > TARGET_TEMP + (TARGET_TEMP * 0.1)){
+        HeaterSwitch(false);
+        Console.println("Mode PREPARE USAGE Heater off Current temp: " + String(getTemp()) );
+      }
     }
     break;
   
@@ -369,15 +397,18 @@ switch(MODE){
 
 //----------------------------
 //---UI controll ---------
-  if(HEATER_ON == 0){
+  if(HEATER_ON == 0){ // the heater is off
     if(USAGE_READY == true){
       SetLed(GREEN);  
     }else{
       SetLed(BLUE);  
-    }
-    
-  }else{
-    SetLed(RED);   
+    } 
+  }else{ // the heater is on
+    if(USAGE_READY == true){
+      SetLed(GREEN);  
+    }else{
+      SetLed(RED);  
+    } 
   }
   
 //-------------------------
