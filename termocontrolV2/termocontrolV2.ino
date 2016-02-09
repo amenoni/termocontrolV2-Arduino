@@ -30,9 +30,9 @@ int tempValidTimeSec = 30;
 //to detect if a usage has been started or not we must check temperature changes, if it drops an usage has started if afeter the usage has been started the temperature rises again the usage has been finished
 int InUseSensingTempTimeSec = 60;
 //if the temperature droped in the last sensing interval is higer than this value we have been detected an usage. Value is % of the last sensed temperature
-int MaxTempDropForUseDetectedPercent = -2;
+int MaxTempDropForUseDetectedPercent = -3;
 //after we detect an usage we start looking a usage finished, to detect it we spect to temperature start rising again, if the temperature rises more than this percent from the last sensing we have detected an usage finish
-int MaxTempUpForDetectUseFinishedPercent = 2;
+int MaxTempUpForDetectUseFinishedPercent = 1;
 //-- END //-- This global variables are re-writed in Linux setup scrips via MailBox
 
 
@@ -95,14 +95,16 @@ void HeaterSwitch (boolean isOn){
 //-----------------------
 
 int CurrentUseStatus = USENOTSTARTED;
+boolean ussageloged = false;
 
-void logUsageEvent(){
+void logUsageEvent(int useType){
     Process p;
     p.begin("/mnt/sda1/arduino/registerUsageLog.py");
-    if(CurrentUseStatus == INUSE){
+    if(useType == INUSE){
       p.addParameter(String(USAGE_STARTED));  
-    }else if(CurrentUseStatus == USEFINISHED){
-      p.addParameter(String(USAGE_FINISHED));  
+    }else if(useType == USEFINISHED){
+      p.addParameter(String(USAGE_FINISHED));
+      ussageloged = false;
     }
     p.run();
     #if DEBUG_MODE
@@ -118,7 +120,6 @@ double lastCheckedTimeUsageTemp;
 
 
 double deltat = 0;
-boolean ussageloged = false;
 
 double deltaT1 = 0;
 double temp1 = 0;
@@ -189,6 +190,7 @@ int UseStatus(){
     
     #if DEBUG_MODE
     Console.println("% Delta T = " + String(deltat));
+    Console.println("CurrentUseStatus= " + String(CurrentUseStatus));
     #endif //ECHO_TO_SERIA
     if(CurrentUseStatus == USENOTSTARTED ){
       if(deltat <= MaxTempDropForUseDetectedPercent){
@@ -197,7 +199,7 @@ int UseStatus(){
              #endif //ECHO_TO_SERIA
         CurrentUseStatus = INUSE;
         if (ussageloged == false){
-          logUsageEvent();
+          logUsageEvent(INUSE);
           ussageloged = true;
         }
           
@@ -208,8 +210,7 @@ int UseStatus(){
              #if DEBUG_MODE
                 Console.println("Use finished detected");
              #endif //ECHO_TO_SERIA
-        CurrentUseStatus = USEFINISHED;
-        logUsageEvent();     
+        logUsageEvent(USEFINISHED);     
         CurrentUseStatus = USENOTSTARTED; //reset the variable for the next usage
         return USEFINISHED;
       }
