@@ -30,7 +30,7 @@ int tempValidTimeSec = 30;
 //to detect if a usage has been started or not we must check temperature changes, if it drops an usage has started if afeter the usage has been started the temperature rises again the usage has been finished
 int InUseSensingTempTimeSec = 60;
 //if the temperature droped in the last sensing interval is higer than this value we have been detected an usage. Value is % of the last sensed temperature
-int MaxTempDropForUseDetectedPercent = -3;
+int MaxTempDropForUseDetectedPercent = -4;
 //after we detect an usage we start looking a usage finished, to detect it we spect to temperature start rising again, if the temperature rises more than this percent from the last sensing we have detected an usage finish
 int MaxTempUpForDetectUseFinishedPercent = 1;
 //-- END //-- This global variables are re-writed in Linux setup scrips via MailBox
